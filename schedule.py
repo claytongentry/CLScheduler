@@ -6,7 +6,7 @@ INCREMENT_SIZE = 10 # minutes
 READ_PAGES_PER_HOUR = 20.0
 WRITE_WORDS_PER_HOUR = 200.0
 
-SCHEDULE_FILE = 'standing.txt'
+SCHEDULE_FILE = "standing.txt"
 TASKLIST_FILE = "tasks.txt"
 
 class Schedule:
@@ -23,6 +23,15 @@ class Schedule:
 
     def get_tasks(self):
         return self.tasks
+
+    # Initialize (empty) increment slots in schedule
+    def init_increments(self, start, end, size):
+        time = start
+        inc = 0
+        while time < end:
+            self.increments.append(Increment(time))
+            inc += size
+            time = start + timedelta(minutes=inc)
 
     def set_lessons(self, schedule_file):
         with open(schedule_file, "r") as sched:
@@ -56,6 +65,28 @@ class Schedule:
         for task in sorted_tasks:
             slot_filled = self.find_and_fill_slot(task)
 
+    # Returns tuple of start and end increments
+    def find_and_fill_slot(self, task):
+        try:
+            days_to_deadline = int(str(task.deadline - datetime.now()).split(", ")[0].split(" ")[0])
+        except: # Deadline < 24 hours away
+            days_to_deadline = 1
+
+        daily_duration = task.duration / days_to_deadline
+
+        for increment in self.increments:
+            if not increment.get_is_filled():
+                start = increment.time
+                end = start + timedelta(minutes=daily_duration)
+                try:
+                    self.fill_timeslot(task, start, end)
+                    return True
+                except: # increment in timeslot is already filled
+                    continue
+
+        # If no slot of sufficient size is found...
+        return False
+
     def set_tasks(self, tasklist):
         with open(tasklist, "r") as taskfile:
             tasks = taskfile.read()[:-1].split("\n") # Cuts last newline
@@ -83,22 +114,6 @@ class Schedule:
                 new_task = Todo(category, duration, todo, deadline, priority)
                 self.tasks.append(new_task)
 
-    # Initialize (empty) increment slots in schedule
-    def init_increments(self, start, end, size):
-        time = start
-        inc = 0
-        while time < end:
-            self.increments.append(Increment(time))
-            inc += size
-            time = start + timedelta(minutes=inc)
-
-    def get_open_timeslots(self):
-        open_slots = []
-        for slot in self.timeslots:
-            if not slot.is_filled:
-                open_slots.append(slot)
-        return open_slots
-
     def set_timeslot(self, todo):
         if todo.get_category() == "lecture" or todo.get_category() == "discussion":
             self.fill_timeslot(todo, todo.starttime, todo.endtime)
@@ -118,7 +133,7 @@ class Schedule:
             slot = self.get_increment(time)
             time = start + timedelta(minutes=inc)
             inc += INCREMENT_SIZE
-            if not slot.is_filled:
+            if not slot.get_is_filled():
                 slot.set_filled(todo)
             else:
                 raise Exception(slot.time.time(), " is already filled!")
@@ -133,28 +148,6 @@ class Schedule:
         # If no increment for that time...
         return False
 
-    # Returns tuple of start and end increments
-    def find_and_fill_slot(self, task):
-
-        try:
-            days_to_deadline = int(str(task.deadline - datetime.now()).split(", ")[0].split(" ")[0])
-        except:
-            days_to_deadline = 1
-
-        daily_duration = task.duration / days_to_deadline
-
-        for increment in self.increments:
-            if not increment.is_filled:
-                start = increment.time
-                end = start + timedelta(minutes=daily_duration)
-                try:
-                    self.fill_timeslot(task, start, end)
-                    return True
-                except: # increment in timeslot is already filled
-                    continue
-
-        # If no slot of sufficient size is found...
-        return False
 
 class Increment:
 
