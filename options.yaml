@@ -1,0 +1,26 @@
+a:
+  args: []
+  command: Todo.add
+  description: "Add a todo"
+v:
+  args: []
+  description: "View your todos"
+e:
+  args:
+    - todo_id
+  description: "Edit a todo"
+s:
+  args:
+    - todo_id
+  description: "Split a todo"
+d:
+  args:
+    - todo_id
+  description: "Delete a todo"
+h:
+  args: []
+  description: "Get help"
+q:
+  args: []
+  command: quit()
+  description: "Quit Split"
